@@ -1,49 +1,44 @@
 import json
 import os
-from config import USERS_FILE, ADMINS_FILE
-from datetime import datetime
 
-def save_user(user_id, full_name, username):
-    users = load_users()
-    if str(user_id) not in users:
-        users[str(user_id)] = {
-            "full_name": full_name,
-            "username": username,
-            "start_time": datetime.now().isoformat()
-        }
-        with open(USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, ensure_ascii=False, indent=2)
+DB_PATH = "data/users.json"
+ADMINS_PATH = "data/admins.json"
+BLOCKED_PATH = "data/blocked.json"
 
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    with open(USERS_FILE, encoding="utf-8") as f:
+def load_json(path):
+    if not os.path.exists(path):
+        with open(path, "w") as f:
+            json.dump({}, f)
+    with open(path, "r") as f:
         return json.load(f)
+
+def save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
 
 def get_users():
-    return load_users()
+    return load_json(DB_PATH)
 
-def load_admins():
-    if not os.path.exists(ADMINS_FILE):
-        return []
-    with open(ADMINS_FILE, encoding="utf-8") as f:
-        return json.load(f)
+def save_user(user_id, data):
+    users = get_users()
+    users[str(user_id)] = data
+    save_json(DB_PATH, users)
 
-def save_admins(admins):
-    with open(ADMINS_FILE, "w", encoding="utf-8") as f:
-        json.dump(admins, f, ensure_ascii=False, indent=2)
-
-def is_admin(user_id):
-    return int(user_id) in load_admins()
+def get_admins():
+    return list(load_json(ADMINS_PATH).keys())
 
 def add_admin(user_id):
-    admins = load_admins()
-    if int(user_id) not in admins:
-        admins.append(int(user_id))
-        save_admins(admins)
+    admins = load_json(ADMINS_PATH)
+    admins[str(user_id)] = True
+    save_json(ADMINS_PATH, admins)
 
 def remove_admin(user_id):
-    admins = load_admins()
-    if int(user_id) in admins:
-        admins.remove(int(user_id))
-        save_admins(admins)
+    admins = load_json(ADMINS_PATH)
+    admins.pop(str(user_id), None)
+    save_json(ADMINS_PATH, admins)
+
+def is_admin(user_id):
+    return str(user_id) in load_json(ADMINS_PATH)
+
+def is_blocked(user_id):
+    return str(user_id) in load_json(BLOCKED_PATH)
