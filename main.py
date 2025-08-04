@@ -1,33 +1,44 @@
-from aiogram import Bot, Dispatcher, executor, types
-from config import BOT_TOKEN
-from handlers.start import start_handler
-from handlers.messages import user_message_handler, admin_reply_callback, block_user_callback
-from handlers.commands import stats_handler, forall_handler, add_admin_handler, remove_admin_handler, reply_handler
-from utils.state import get_reply
+from aiogram.types import Message
+from config import ADMIN_ID
+from utils.db import get_users, add_admin, remove_admin, is_admin
+from utils.state import get_reply, clear_reply
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+async def stats_handler(message: Message):
+    if not is_admin(message.from_user.id): return
+    users = get_users()
+    text = f"📊 تعداد کاربران: {len(users)}\n\n"
+    for uid, data in users.items():
+        text += f"👤 {data['full_name']} | @{data['username']} | {uid} | {data['start_time']}\n"
+    await message.reply(text or "کاربری یافت نشد.")
 
-# کامندهای اصلی
-dp.register_message_handler(start_handler, commands=["start"])
-dp.register_message_handler(stats_handler, lambda msg: msg.text.lower().startswith("آمار"))
-dp.register_message_handler(forall_handler, lambda msg: msg.text.lower().startswith("پیام همگانی"))
-dp.register_message_handler(add_admin_handler, lambda msg: msg.text.startswith("افزودن ادمین"))
-dp.register_message_handler(remove_admin_handler, lambda msg: msg.text.startswith("حذف ادمین"))
+async def forall_handler(message: Message):
+    if not is_admin(message.from_user.id): return
+    await message.reply("✉️ لطفاً پیام همگانی را فوروارد یا ارسال کنید.")
 
-# فقط اگر ادمین در حالت پاسخ باشه، پیام ارسال کنه
-dp.register_message_handler(
-    reply_handler,
-    lambda msg: get_reply(msg.from_user.id) is not None,
-    content_types=types.ContentTypes.TEXT
-)
+async def add_admin_handler(message: Message):
+    if not is_admin(message.from_user.id): return
+    try:
+        admin_id = int(message.text.split()[1])
+        add_admin(admin_id)
+        await message.reply(f"✅ ادمین با آیدی {admin_id} افزوده شد.")
+    except:
+        await message.reply("❌ فرمت درست دستور: /admin [user_id]")
 
-# دریافت پیام کاربر فقط در چت خصوصی
-dp.register_message_handler(user_message_handler, lambda msg: msg.chat.type == "private")
+async def remove_admin_handler(message: Message):
+    if not is_admin(message.from_user.id): return
+    try:
+        admin_id = int(message.text.split()[1])
+        remove_admin(admin_id)
+        await message.reply(f"✅ ادمین با آیدی {admin_id} حذف شد.")
+    except:
+        await message.reply("❌ فرمت درست دستور: /unadmin [user_id]")
 
-# هندل دکمه‌ها
-dp.register_callback_query_handler(admin_reply_callback, lambda c: c.data.startswith("reply"))
-dp.register_callback_query_handler(block_user_callback, lambda c: c.data.startswith("block"))
-
-if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+async def reply_handler(message: Message):
+    user_id = get_reply(message.from_user.id)
+    if user_id:
+        try:
+            await message.bot.send_message(user_id, f"✉️ پاسخ ادمین: {message.text}")
+            await message.reply("✅ پیام ارسال شد.")
+        except:
+            await message.reply("❌ ارسال پیام به کاربر ناموفق بود.")
+        clear_reply(message.from_user.id)
