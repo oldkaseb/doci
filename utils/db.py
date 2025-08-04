@@ -25,7 +25,7 @@ def save_user(user_id, data):
     save_json(DB_PATH, users)
 
 def get_admins():
-    return list(load_json(ADMINS_PATH).keys())
+    return load_json(ADMINS_PATH)  # چون لیسته، نیازی به .keys() نیست
 
 def add_admin(user_id):
     admins = load_json(ADMINS_PATH)
