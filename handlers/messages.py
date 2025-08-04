@@ -1,26 +1,33 @@
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery
 from config import ADMIN_ID
-from utils.db import is_admin
-from utils.state import set_reply, clear_reply
-from aiogram import Bot
+from utils.db import is_admin, save_user, get_users
+from utils.state import set_reply
+from keyboards.inline import get_reply_markup
 
 async def user_message_handler(message: Message):
-    from_user = message.from_user
-    text = message.text or "[بدون متن]"
+    # ❗️ نذاریم پیام ادمین‌ها به عنوان پیام کاربر پردازش بشه
+    if is_admin(message.from_user.id):
+        return
 
-    markup = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("✉️ پاسخ", callback_data=f"reply:{from_user.id}"),
-        InlineKeyboardButton("⛔ بلاک", callback_data=f"block:{from_user.id}")
-    )
+    user_id = message.from_user.id
+    full_name = message.from_user.full_name
+    username = message.from_user.username or "ندارد"
+    start_time = message.date.strftime("%Y-%m-%d %H:%M:%S")
 
-    admin_bot = Bot.get_current()
-    await admin_bot.send_message(ADMIN_ID, f"پیام از {from_user.full_name} (@{from_user.username} - {from_user.id}):\n{text}", reply_markup=markup)
-    await message.reply("✅ پیام شما برای ادمین ارسال شد.")
+    # ذخیره اطلاعات کاربر
+    save_user(user_id, full_name, username, start_time)
 
-async def admin_reply_callback(call: CallbackQuery):
-    user_id = int(call.data.split(":")[1])
-    set_reply(call.from_user.id, user_id)
-    await call.message.answer(f"✉️ پیام خود را برای کاربر {user_id} ارسال کنید:")
+    # ارسال پیام به همه ادمین‌ها
+    from utils.db import load_json
+    admins = load_json("admins.json")
+    for admin_id in admins:
+        try:
+            await message.bot.send_message(
+                int(admin_id),
+                f"پیام از:\n👤 {full_name} (@{username}) - {user_id}\n\n{message.text}",
+                reply_markup=get_reply_markup(user_id)
+            )
+        except:
+            pass
 
-async def block_user_callback(call: CallbackQuery):
-    await call.message.answer("⛔ عملکرد بلاک هنوز پیاده‌سازی نشده است.")
+    await message.reply("پیام شما برای ادمین ارسال شد ✅")
