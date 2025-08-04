@@ -1,16 +1,15 @@
 from aiogram.types import Message
+from config import ADMIN_ID
 from utils.db import get_users, add_admin, remove_admin, is_admin
 from utils.state import get_reply, clear_reply
 
 async def stats_handler(message: Message):
     if not is_admin(message.from_user.id): return
     users = get_users()
-    text = f"📊 تعداد کاربران: {len(users)}
-
-"
+    text = f"📊 تعداد کاربران: {len(users)}\n\n"
     for uid, data in users.items():
-        text += f"👤 {data['full_name']} | @{data['username']} | {uid} | {data['start_time']}
-"
+        text += f"👤 {data['full_name']} | @{data['username']} | {uid} | {data['start_time']}\n"
+
     await message.reply(text or "کاربری یافت نشد.")
 
 async def forall_handler(message: Message):
@@ -20,10 +19,7 @@ async def forall_handler(message: Message):
 async def add_admin_handler(message: Message):
     if not is_admin(message.from_user.id): return
     try:
-        parts = message.text.strip().split()
-        if len(parts) < 3:
-            return await message.reply("❌ لطفاً آیدی را پس از دستور وارد کن. مثال: افزودن ادمین 123456789")
-        admin_id = int(parts[2])
+        admin_id = int(message.text.split()[2])
         add_admin(admin_id)
         await message.reply(f"✅ ادمین با آیدی {admin_id} افزوده شد.")
     except:
@@ -32,10 +28,7 @@ async def add_admin_handler(message: Message):
 async def remove_admin_handler(message: Message):
     if not is_admin(message.from_user.id): return
     try:
-        parts = message.text.strip().split()
-        if len(parts) < 3:
-            return await message.reply("❌ لطفاً آیدی را پس از دستور وارد کن. مثال: حذف ادمین 123456789")
-        admin_id = int(parts[2])
+        admin_id = int(message.text.split()[2])
         remove_admin(admin_id)
         await message.reply(f"✅ ادمین با آیدی {admin_id} حذف شد.")
     except:
